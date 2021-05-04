@@ -1,4 +1,4 @@
-import { connectDatabase, insertDocument } from '../../../lib/db';
+import { connectDatabase, insertDocument, getDocument } from '../../../lib/db';
 import { hashPassword } from '../../../lib/auth';
 
 async function handler(req, res) {
@@ -14,8 +14,17 @@ async function handler(req, res) {
     }
 
     const client = await connectDatabase();
+    const db = client.db();
+
+    const existingUser = await getDocument(db, 'users', { email: email });
+
+    if (existingUser) {
+        res.status(422).json({ message: 'User exists already' });
+        return client.close();
+    }
+
     const hashedPassword = await hashPassword(password);
-    const result = await insertDocument(client, 'users', {
+    const result = await insertDocument(db, 'users', {
         email: email,
         password: hashedPassword,
     });
@@ -24,6 +33,7 @@ async function handler(req, res) {
         message: 'User Created successfully',
         data: result,
     });
+    return client.close();
 }
 
 export default handler;
